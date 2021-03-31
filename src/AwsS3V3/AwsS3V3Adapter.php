@@ -14,6 +14,7 @@ use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\FilesystemOperationFailed;
 use League\Flysystem\PathPrefixer;
 use League\Flysystem\StorageAttributes;
+use League\Flysystem\Stream\ReadableStream;
 use League\Flysystem\UnableToCheckFileExistence;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToDeleteFile;
@@ -148,6 +149,17 @@ class AwsS3V3Adapter implements FilesystemAdapter
 
         if ($shouldDetermineMimetype && $mimeType = $this->mimeTypeDetector->detectMimeType($key, $body)) {
             $options['ContentType'] = $mimeType;
+        }
+
+        if ($body instanceof ReadableStream) {
+            $stream = $body;
+            $body = static function (int $chunkSize) use ($stream) {
+                if ($stream->eof()) {
+                    return false;
+                }
+
+                return $stream->read($chunkSize);
+            };
         }
 
         $this->client->upload($this->bucket, $key, $body, $acl, ['params' => $options]);

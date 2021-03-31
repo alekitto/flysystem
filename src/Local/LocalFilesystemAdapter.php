@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace League\Flysystem\Local;
 
+use League\Flysystem\Stream\ReadableStream;
 use const DIRECTORY_SEPARATOR;
 use const LOCK_EX;
 use DirectoryIterator;
@@ -123,10 +124,22 @@ class LocalFilesystemAdapter implements FilesystemAdapter
 
         error_clear_last();
         $stream = @fopen($prefixedLocation, 'w+b');
+        if ( ! $stream) {
+            throw UnableToWriteFile::atLocation($prefixedLocation, error_get_last()['message'] ?? '');
+        }
 
-        if ( ! ($stream && false !== stream_copy_to_stream($contents, $stream) && fclose($stream))) {
-            $reason = error_get_last()['message'] ?? '';
-            throw UnableToWriteFile::atLocation($prefixedLocation, $reason);
+        if ($contents instanceof ReadableStream) {
+            while ($contents->eof() === false) {
+                if (false === fwrite($stream, $contents->read(512 * 1024))) {
+                    throw UnableToWriteFile::atLocation($prefixedLocation, error_get_last()['message'] ?? '');
+                }
+            }
+        } elseif (false === stream_copy_to_stream($contents, $stream)) {
+            throw UnableToWriteFile::atLocation($prefixedLocation, error_get_last()['message'] ?? '');
+        }
+
+        if ( ! fclose($stream)) {
+            throw UnableToWriteFile::atLocation($prefixedLocation, error_get_last()['message'] ?? '');
         }
 
         if ($visibility = $config->get(Config::OPTION_VISIBILITY)) {

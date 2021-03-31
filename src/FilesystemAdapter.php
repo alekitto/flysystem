@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace League\Flysystem;
 
+use League\Flysystem\Stream\ReadableStream;
+
 interface FilesystemAdapter
 {
     /**
@@ -18,7 +20,7 @@ interface FilesystemAdapter
     public function write(string $path, string $contents, Config $config): void;
 
     /**
-     * @param resource $contents
+     * @param resource|ReadableStream $contents
      *
      * @throws UnableToWriteFile
      * @throws FilesystemException

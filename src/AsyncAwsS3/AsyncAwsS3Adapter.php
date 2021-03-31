@@ -19,6 +19,7 @@ use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\PathPrefixer;
 use League\Flysystem\StorageAttributes;
+use League\Flysystem\Stream\ReadableStream;
 use League\Flysystem\UnableToCheckFileExistence;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToDeleteFile;
@@ -316,6 +317,17 @@ class AsyncAwsS3Adapter implements FilesystemAdapter
 
         if ($shouldDetermineMimetype && $mimeType = $this->mimeTypeDetector->detectMimeType($key, $body)) {
             $options['ContentType'] = $mimeType;
+        }
+
+        if ($body instanceof ReadableStream) {
+            $stream = $body;
+            $body = static function (int $chunkSize) use ($stream) {
+                if ($stream->eof()) {
+                    return false;
+                }
+
+                return $stream->read($chunkSize);
+            };
         }
 
         if ($this->client instanceof SimpleS3Client) {

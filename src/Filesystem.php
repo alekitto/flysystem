@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace League\Flysystem;
 
+use League\Flysystem\Stream\ReadableStream;
+use League\Flysystem\Stream\ResourceStream;
+
 class Filesystem implements FilesystemOperator
 {
     /**
@@ -47,9 +50,11 @@ class Filesystem implements FilesystemOperator
 
     public function writeStream(string $location, $contents, array $config = []): void
     {
-        /* @var resource $contents */
-        $this->assertIsResource($contents);
-        $this->rewindStream($contents);
+        if ($contents instanceof ReadableStream === false) {
+            $contents = new ResourceStream($contents);
+        }
+
+        $contents->rewind();
         $this->adapter->writeStream(
             $this->pathNormalizer->normalizePath($location),
             $contents,
@@ -133,31 +138,5 @@ class Filesystem implements FilesystemOperator
     public function visibility(string $path): string
     {
         return $this->adapter->visibility($this->pathNormalizer->normalizePath($path))->visibility();
-    }
-
-    /**
-     * @param mixed $contents
-     */
-    private function assertIsResource($contents): void
-    {
-        if (is_resource($contents) === false) {
-            throw new InvalidStreamProvided(
-                "Invalid stream provided, expected stream resource, received " . gettype($contents)
-            );
-        } elseif ($type = get_resource_type($contents) !== 'stream') {
-            throw new InvalidStreamProvided(
-                "Invalid stream provided, expected stream resource, received resource of type " . $type
-            );
-        }
-    }
-
-    /**
-     * @param resource $resource
-     */
-    private function rewindStream($resource): void
-    {
-        if (ftell($resource) !== 0 && stream_get_meta_data($resource)['seekable']) {
-            rewind($resource);
-        }
     }
 }

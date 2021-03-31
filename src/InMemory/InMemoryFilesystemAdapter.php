@@ -8,6 +8,7 @@ use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemAdapter;
+use League\Flysystem\Stream\ReadableStream;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\UnableToReadFile;
@@ -59,7 +60,18 @@ class InMemoryFilesystemAdapter implements FilesystemAdapter
 
     public function writeStream(string $path, $contents, Config $config): void
     {
-        $this->write($path, (string) stream_get_contents($contents), $config);
+        if ($contents instanceof ReadableStream) {
+            $acc = '';
+            while (false === $contents->eof()) {
+                $acc .= $contents->read(512 * 1024);
+            }
+
+            $contents = $acc;
+        } else {
+            $contents = (string) stream_get_contents($contents);
+        }
+
+        $this->write($path, $contents, $config);
     }
 
     public function read(string $path): string
